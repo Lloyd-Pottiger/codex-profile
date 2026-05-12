@@ -5,6 +5,27 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Local build artifacts
+# Local artifacts
 *.tmp
 
+# Codex local runtime state
+.personality_migration
+.tmp/
+app-server-control/
+config.toml
+history.jsonl
+installation_id
+log/
+logs_*.sqlite
+logs_*.sqlite-shm
+logs_*.sqlite-wal
+memories/
+rules/
+session_index.jsonl
+sessions/
+shell_snapshots/
+state_*.sqlite
+state_*.sqlite-shm
+state_*.sqlite-wal
+tmp/
+version.json

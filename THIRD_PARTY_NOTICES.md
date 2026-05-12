@@ -2,24 +2,13 @@
 
 This repository includes third-party materials under their own licenses.
 
-## Microsoft Pragmatic Rust Guidelines (MIT)
+## OpenAI System Skills (Apache-2.0)
 
-Files:
+Files under:
 
-- `rust-coder/references/pragmatic-rust-guidelines.md`
+- `skills/.system/imagegen/`
+- `skills/.system/openai-docs/`
+- `skills/.system/skill-creator/`
+- `skills/.system/skill-installer/`
 
-License:
-
-- `rust-coder/references/pragmatic-rust-guidelines.md` begins with: “Copyright (c) Microsoft Corporation. Licensed under the MIT license.”
-
-## Microsoft Rust Guidelines (MIT)
-
-Files:
-
-- `rust-coder/references/rust-guidelines-checklist.md`
-- `rust-coder/references/rust-guidelines-LICENSE.md`
-
-License:
-
-- `rust-coder/references/rust-guidelines-LICENSE.md`
-
+Each directory includes its own Apache-2.0 license file.

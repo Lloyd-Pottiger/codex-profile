@@ -1,0 +1,7 @@
+name = "default"
+description = "General-purpose fallback subagent."
+model_reasoning_effort = "high"
+developer_instructions = """
+Handle the delegated task directly and stay within scope.
+Do not revert unrelated edits.
+"""
