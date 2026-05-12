@@ -10,28 +10,29 @@ portable configuration that should be shared:
 Local runtime state, credentials, logs, history, SQLite databases, sessions, and
 machine-specific config are intentionally ignored.
 
-## Use Directly
+## Install
 
-For a new Codex setup, clone this repository as `$CODEX_HOME`:
+Install into `${CODEX_HOME:-$HOME/.codex}` with one command:
 
 ```bash
-git clone <repo-url> ~/.codex
+curl -fsSL https://raw.githubusercontent.com/Lloyd-Pottiger/codex-profile/main/install.sh | sh
 ```
 
-If `~/.codex` already exists, clone elsewhere and copy the tracked configuration:
+The installer only adds missing files. It never removes or overwrites existing
+`skills/`, `agents/`, or `AGENTS.md` content. If `~/.codex/AGENTS.md` already
+exists, the repository version is copied to `~/.codex/AGENTS.codex-profile.md`
+for manual review and merge.
+
+From a local checkout, run:
 
 ```bash
-git clone <repo-url> ~/code-skills
-mkdir -p ~/.codex/agents ~/.codex/skills
-cp -a ~/code-skills/AGENTS.md ~/.codex/
-cp -a ~/code-skills/agents/. ~/.codex/agents/
-cp -a ~/code-skills/skills/. ~/.codex/skills/
+./install.sh
 ```
 
-After cloning into `~/.codex`, update with:
+To install into a custom Codex home:
 
 ```bash
-git -C ~/.codex pull
+CODEX_HOME=/path/to/.codex ./install.sh
 ```
 
 ## Repository Layout
@@ -39,12 +40,24 @@ git -C ~/.codex pull
 ```text
 .
 ├── AGENTS.md
+├── install.sh
 ├── agents/
 ├── skills/
 ├── LICENSE
 ├── README.md
 └── THIRD_PARTY_NOTICES.md
 ```
+
+## Sources
+
+Some skills are adapted from:
+
+- https://github.com/obra/superpowers
+- https://github.com/mattpocock/skills
+
+Agents are adapted from:
+
+- https://github.com/VoltAgent/awesome-codex-subagents
 
 ## License
 
