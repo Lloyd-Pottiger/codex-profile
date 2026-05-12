@@ -144,6 +144,12 @@ install_children() {
         name=${src##*/}
         dest=$dest_dir/$name
 
+        if [ "$label" = skills ] && [ "$name" = .system ]; then
+            log "skip managed $label/$name: $dest"
+            skipped_count=$((skipped_count + 1))
+            continue
+        fi
+
         if path_exists "$dest"; then
             log "skip existing $label/$name: $dest"
             skipped_count=$((skipped_count + 1))
@@ -184,7 +190,7 @@ main() {
     install_children "$SOURCE_DIR/agents" "$codex_home/agents" agents
     install_children "$SOURCE_DIR/skills" "$codex_home/skills" skills
 
-    log "Done. Installed: $installed_count. Skipped existing: $skipped_count."
+    log "Done. Installed: $installed_count. Skipped: $skipped_count."
 }
 
 main "$@"

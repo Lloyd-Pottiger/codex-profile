@@ -44,8 +44,7 @@ CODEX_HOME=/path/to/.codex ./install.sh
 ├── agents/
 ├── skills/
 ├── LICENSE
-├── README.md
-└── THIRD_PARTY_NOTICES.md
+└── README.md
 ```
 
 ## Sources
@@ -62,6 +61,3 @@ Agents are adapted from:
 ## License
 
 This repository is MIT licensed; see `LICENSE`.
-
-Some included skill materials carry their own licenses; see
-`THIRD_PARTY_NOTICES.md`.
