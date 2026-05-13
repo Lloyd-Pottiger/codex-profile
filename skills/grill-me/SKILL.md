@@ -7,4 +7,7 @@ Interview me relentlessly about every aspect of this plan until we reach a share
 
 Ask the questions one at a time.
 
-If a question can be answered by exploring the codebase, explore the codebase instead.
+Don't ask silly questions, make sure you fully understand the context of what we are talking about:
+
+- Check out the current project state first (files, docs, recent commits)
+- Explore the current structure and codebase to understand the context
