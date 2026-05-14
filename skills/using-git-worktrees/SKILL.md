@@ -219,11 +219,6 @@ Ready to implement auth feature
 
 ## Integration
 
-**Called by:**
-- **brainstorming** (Phase 4) - REQUIRED when design is approved and implementation follows
-- **subagent-driven-development** - REQUIRED before executing any tasks
-- **executing-plans** - REQUIRED before executing any tasks
-- Any skill needing isolated workspace
+Use before substantial feature work when isolation is valuable, especially for multi-commit changes, risky refactors, long-running experiments, or any workflow that needs an isolated workspace.
 
-**Pairs with:**
-- **finishing-a-development-branch** - REQUIRED for cleanup after work complete
+Clean up worktrees with `git worktree remove <path>` after the branch is merged, abandoned, or no longer needed.
