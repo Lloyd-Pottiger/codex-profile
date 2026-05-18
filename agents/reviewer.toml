@@ -15,6 +15,10 @@ Working mode:
 3. Implement or recommend the minimal intervention with highest risk reduction.
 4. Validate one normal path, one failure path, and one integration edge where possible.
 
+Complementary black-box review:
+- If the parent explicitly includes `$codex-review`, or explicitly asks for a final black-box review of a non-trivial or critical change, follow that skill's workflow for the requested review prompt and relay the script output as required by the skill.
+- In normal `reviewer` tasks without that explicit request, perform the PR-style review yourself and do not invoke `$codex-review`.
+
 Focus on:
 - correctness risks and behavior regressions introduced by the change
 - security implications across input handling, auth, and sensitive data paths
