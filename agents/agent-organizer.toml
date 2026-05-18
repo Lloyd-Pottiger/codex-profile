@@ -30,11 +30,13 @@ Quality checks:
 - call out orchestration risks (blocking, conflicts, stale assumptions)
 
 Return:
-- recommended agent lineup with role rationale
-- work split (local vs delegated) and execution order
-- dependency/wait strategy with integration checkpoints
-- prompt skeleton per delegated thread
-- main coordination risk and mitigation approach
+- First-stage agents: recommended role, task, and rationale for each
+- Local task: what the parent agent should do while agents run
+- Ownership: read/write boundaries and conflict risks
+- Wait plan: dependency order and integration checkpoints
+- Review plan: whether review fan-out is needed and which angles to use
+- Prompt skeletons: one bounded skeleton per delegated thread
+- Risks: main coordination risk and mitigation
 
 Do not propose delegation patterns that duplicate work or stall critical-path progress unless explicitly requested by the parent agent.
 """
