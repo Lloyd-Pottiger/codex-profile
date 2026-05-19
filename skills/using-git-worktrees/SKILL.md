@@ -1,6 +1,6 @@
 ---
 name: using-git-worktrees
-description: Use when starting feature work that needs isolation from the current workspace or before executing implementation plans - creates isolated git worktrees, preferring a project-adjacent <repo>.worktrees directory unless the user or repository explicitly requests another path
+description: Use when starting feature work that needs isolation from the current workspace or before executing implementation plans - creates isolated git worktrees, preferring the canonical project-adjacent <repo>.worktrees directory unless the user or repository explicitly requests another path
 ---
 
 # Using Git Worktrees
@@ -9,13 +9,13 @@ description: Use when starting feature work that needs isolation from the curren
 
 Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
 
-**Core principle:** Project-adjacent by default + safety verification = reliable isolation.
+**Core principle:** Canonical project-adjacent root by default + safety verification = reliable isolation.
 
 **Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
 
 ## Directory Selection Process
 
-Follow this priority order. By default, put worktrees beside the repository in `<repo-name>.worktrees` so the layout matches editor workflows such as VS Code. Do not default to repository-internal paths such as `.worktrees/` or config-owned global paths such as `~/.config/superpowers`; use another path only when the user or repository instructions explicitly ask for it.
+Follow this priority order. By default, put worktrees beside the primary repository in `<repo-name>.worktrees` so the layout matches editor workflows such as VS Code. If invoked from an existing linked worktree, do not derive the default from that linked worktree's directory name. Do not default to repository-internal paths such as `.worktrees/` or config-owned global paths such as `~/.config/superpowers`; use another path only when the user or repository instructions explicitly ask for it.
 
 ### 1. Honor Explicit Instructions
 
@@ -29,9 +29,41 @@ rg -i "worktree.*(dir|director|path)|worktrees/" AGENTS.md CLAUDE.md docs .agent
 
 ### 2. Default to Project-Adjacent
 
-If no explicit preference is found, use `<parent-of-repo>/<repo-name>.worktrees/`.
+If no explicit preference is found, use `<parent-of-primary-repo>/<repo-name>.worktrees/`.
 
 Example: if the repository is `~/projects/xx`, use `~/projects/xx.worktrees/`.
+
+If the current checkout is already a linked worktree under that root, reuse the parent worktree root. Example: if the current checkout is `~/projects/loop.worktrees/find-desttop`, create the next worktree under `~/projects/loop.worktrees/<branch>`, not under `~/projects/loop.worktrees/find-desttop.worktrees/<branch>`.
+
+Use this helper to compute the default root:
+
+```bash
+default_worktree_root_for_repo() {
+  repo_root=$1
+  git_dir=$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)
+  git_common_dir=$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)
+
+  if [ "$git_dir" != "$git_common_dir" ]; then
+    current_parent=$(dirname "$repo_root")
+    case "$(basename "$current_parent")" in
+      *.worktrees)
+        printf '%s\n' "$current_parent"
+        return
+        ;;
+    esac
+
+    primary_worktree=$(
+      git -C "$repo_root" worktree list --porcelain |
+        awk '/^worktree / { sub(/^worktree /, ""); print; exit }'
+    )
+    if [ -n "$primary_worktree" ] && [ -d "$primary_worktree" ]; then
+      repo_root=$primary_worktree
+    fi
+  fi
+
+  printf '%s/%s.worktrees\n' "$(dirname "$repo_root")" "$(basename "$repo_root")"
+}
+```
 
 ### Submodules
 
@@ -42,7 +74,7 @@ super_root=$(git rev-parse --show-superproject-working-tree)
 submodule_root=$(git rev-parse --show-toplevel)
 
 if [ -n "$super_root" ]; then
-  super_worktree_root="$(dirname "$super_root")/$(basename "$super_root").worktrees"
+  super_worktree_root=$(default_worktree_root_for_repo "$super_root")
   submodule_rel="${submodule_root#$super_root/}"
   default_worktree_root="$super_worktree_root/submodules/$submodule_rel"
 fi
@@ -82,24 +114,50 @@ No `.gitignore` verification is needed for paths outside the repository. Externa
 ### 1. Detect Project Name
 
 ```bash
-project=$(basename "$(git rev-parse --show-toplevel)")
+repo_root=$(git rev-parse --show-toplevel)
 ```
 
 ### 2. Create Worktree
 
 ```bash
-repo_root=$(git rev-parse --show-toplevel)
-default_worktree_root="$(dirname "$repo_root")/$(basename "$repo_root").worktrees"
+default_worktree_root_for_repo() {
+  repo_root=$1
+  git_dir=$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir)
+  git_common_dir=$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)
+
+  if [ "$git_dir" != "$git_common_dir" ]; then
+    current_parent=$(dirname "$repo_root")
+    case "$(basename "$current_parent")" in
+      *.worktrees)
+        printf '%s\n' "$current_parent"
+        return
+        ;;
+    esac
+
+    primary_worktree=$(
+      git -C "$repo_root" worktree list --porcelain |
+        awk '/^worktree / { sub(/^worktree /, ""); print; exit }'
+    )
+    if [ -n "$primary_worktree" ] && [ -d "$primary_worktree" ]; then
+      repo_root=$primary_worktree
+    fi
+  fi
+
+  printf '%s/%s.worktrees\n' "$(dirname "$repo_root")" "$(basename "$repo_root")"
+}
+
+default_worktree_root=$(default_worktree_root_for_repo "$repo_root")
+project=$(basename "${default_worktree_root%.worktrees}")
 
 super_root=$(git rev-parse --show-superproject-working-tree)
 if [ -n "$super_root" ]; then
-  super_worktree_root="$(dirname "$super_root")/$(basename "$super_root").worktrees"
+  super_worktree_root=$(default_worktree_root_for_repo "$super_root")
   submodule_rel="${repo_root#$super_root/}"
   default_worktree_root="$super_worktree_root/submodules/$submodule_rel"
 fi
 
 # Determine full path from the selected worktree root.
-# Default: <parent-of-repo>/<repo-name>.worktrees/<branch-name>
+# Default: <parent-of-primary-repo>/<repo-name>.worktrees/<branch-name>
 WORKTREE_ROOT="${WORKTREE_ROOT:-$default_worktree_root}"
 path="$WORKTREE_ROOT/$BRANCH_NAME"
 
@@ -157,8 +215,9 @@ Ready to implement <feature-name>
 |-----------|--------|
 | User specifies a path | Use it |
 | Repository instructions specify a path | Use it |
+| Current checkout is `<repo>.worktrees/<branch>` | Use parent `<repo>.worktrees/` |
 | Sibling `<repo>.worktrees/` already exists | Use it |
-| None exists | Use sibling `<repo>.worktrees/` |
+| None exists | Use canonical sibling `<repo>.worktrees/` from the primary worktree |
 | Explicit repository-internal directory not ignored | Add to `.git/info/exclude` by default |
 | Tests fail during baseline | Report failures + ask |
 | No package.json/Cargo.toml | Skip dependency install |
@@ -173,7 +232,7 @@ Ready to implement <feature-name>
 ### Assuming directory location
 
 - **Problem:** Creates inconsistency, violates project conventions, or scatters worktrees into unrelated global config directories
-- **Fix:** Follow priority: user/repo instructions > sibling `<repo>.worktrees/`
+- **Fix:** Follow priority: user/repo instructions > canonical sibling `<repo>.worktrees/`; when invoked inside an existing linked worktree, reuse the existing `<repo>.worktrees` root instead of nesting a new `<branch>.worktrees`
 
 ### Proceeding with failing tests
 
@@ -212,7 +271,8 @@ Ready to implement auth feature
 - Skip repository instruction checks
 
 **Always:**
-- Follow directory priority: user/repo instructions > sibling `<repo>.worktrees/`
+- Follow directory priority: user/repo instructions > canonical sibling `<repo>.worktrees/`
+- Reuse the parent `<repo>.worktrees/` root when invoked from `<repo>.worktrees/<branch>`
 - Verify directory is ignored for explicitly requested repository-internal roots
 - Auto-detect and run project setup
 - Verify clean test baseline
