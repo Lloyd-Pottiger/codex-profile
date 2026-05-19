@@ -54,6 +54,10 @@ Some skills are adapted from:
 - https://github.com/obra/superpowers
 - https://github.com/mattpocock/skills
 
+Recommended companion projects:
+
+- CodexPotter: https://github.com/breezewish/CodexPotter/tree/v2
+
 Agents are adapted from:
 
 - https://github.com/VoltAgent/awesome-codex-subagents
