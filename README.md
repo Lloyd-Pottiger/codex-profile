@@ -10,18 +10,16 @@ portable configuration that should be shared:
 Local runtime state, credentials, logs, history, SQLite databases, sessions, and
 machine-specific config are intentionally ignored.
 
-## Install
+## Install or Update
 
-Install into `${CODEX_HOME:-$HOME/.codex}` with one command:
+Install or update `${CODEX_HOME:-$HOME/.codex}` with one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Lloyd-Pottiger/codex-profile/main/install.sh | sh
 ```
 
-The installer only adds missing files. It never removes or overwrites existing
-`skills/`, `agents/`, or `AGENTS.md` content. If `~/.codex/AGENTS.md` already
-exists, the repository version is copied to `~/.codex/AGENTS.codex-profile.md`
-for manual review and merge.
+The installer adds missing files and updates existing profile files in place.
+Files that exist only in the destination are kept.
 
 From a local checkout, run:
 

@@ -10,7 +10,7 @@ usage() {
     cat <<'EOF'
 Usage: install.sh
 
-Safely install this Codex profile into ${CODEX_HOME:-$HOME/.codex}.
+Install or update this Codex profile in ${CODEX_HOME:-$HOME/.codex}.
 
 Environment:
   CODEX_HOME           Destination Codex home. Defaults to $HOME/.codex.
@@ -18,8 +18,8 @@ Environment:
   CODEX_PROFILE_REPO    Git repository used when no local source is found.
   CODEX_PROFILE_REF     Git branch or tag used when cloning. Defaults to main.
 
-The installer never removes or overwrites existing files. Existing skills,
-agents, and AGENTS.md are kept as-is.
+The installer adds missing files and updates existing profile files in place.
+Files that exist only in the destination are kept.
 EOF
 }
 
@@ -95,43 +95,82 @@ validate_source() {
 }
 
 installed_count=0
+updated_count=0
+unchanged_count=0
 skipped_count=0
 
 install_file() {
-    src=$1
-    dest=$2
-    label=$3
-
-    if path_exists "$dest"; then
-        log "skip existing $label: $dest"
-        skipped_count=$((skipped_count + 1))
-        return
-    fi
-
-    cp -p "$src" "$dest"
-    log "installed $label: $dest"
-    installed_count=$((installed_count + 1))
-}
-
-install_agents_md() {
-    src=$1
-    dest=$2
-
-    if path_exists "$dest/AGENTS.md"; then
-        sidecar=$dest/AGENTS.codex-profile.md
-        if path_exists "$sidecar"; then
-            log "skip existing AGENTS.md and sidecar: $dest/AGENTS.md"
+    if path_exists "$2"; then
+        if [ -L "$2" ]; then
+            log "skip existing symlink $3: $2"
             skipped_count=$((skipped_count + 1))
             return
         fi
 
-        cp -p "$src/AGENTS.md" "$sidecar"
-        log "kept existing AGENTS.md; installed merge copy: $sidecar"
-        installed_count=$((installed_count + 1))
+        if [ -d "$2" ]; then
+            log "skip conflicting directory $3: $2"
+            skipped_count=$((skipped_count + 1))
+            return
+        fi
+
+        if [ ! -f "$2" ]; then
+            log "skip conflicting non-file $3: $2"
+            skipped_count=$((skipped_count + 1))
+            return
+        fi
+
+        if cmp -s "$1" "$2"; then
+            log "unchanged $3: $2"
+            unchanged_count=$((unchanged_count + 1))
+            return
+        fi
+
+        cp -p "$1" "$2"
+        log "updated $3: $2"
+        updated_count=$((updated_count + 1))
         return
     fi
 
-    install_file "$src/AGENTS.md" "$dest/AGENTS.md" AGENTS.md
+    cp -p "$1" "$2"
+    log "installed $3: $2"
+    installed_count=$((installed_count + 1))
+}
+
+install_dir() {
+    if path_exists "$2"; then
+        if [ -L "$2" ] || [ ! -d "$2" ]; then
+            log "skip conflicting non-directory $3: $2"
+            skipped_count=$((skipped_count + 1))
+            return
+        fi
+
+        install_tree "$1" "$2" "$3"
+        return
+    fi
+
+    cp -pR "$1" "$2"
+    log "installed $3: $2"
+    installed_count=$((installed_count + 1))
+}
+
+install_entry() {
+    if [ -d "$1" ] && [ ! -L "$1" ]; then
+        install_dir "$1" "$2" "$3"
+    else
+        install_file "$1" "$2" "$3"
+    fi
+}
+
+install_tree() {
+    for src in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+        path_exists "$src" || continue
+        name=${src##*/}
+        install_entry "$src" "$2/$name" "$3/$name"
+    done
+}
+
+install_agents_md() {
+    install_file "$1/AGENTS.md" "$2/AGENTS.md" AGENTS.md
 }
 
 install_children() {
@@ -144,21 +183,7 @@ install_children() {
         name=${src##*/}
         dest=$dest_dir/$name
 
-        if [ "$label" = skills ] && [ "$name" = .system ]; then
-            log "skip managed $label/$name: $dest"
-            skipped_count=$((skipped_count + 1))
-            continue
-        fi
-
-        if path_exists "$dest"; then
-            log "skip existing $label/$name: $dest"
-            skipped_count=$((skipped_count + 1))
-            continue
-        fi
-
-        cp -pR "$src" "$dest"
-        log "installed $label/$name: $dest"
-        installed_count=$((installed_count + 1))
+        install_entry "$src" "$dest" "$label/$name"
     done
 }
 
@@ -190,7 +215,7 @@ main() {
     install_children "$SOURCE_DIR/agents" "$codex_home/agents" agents
     install_children "$SOURCE_DIR/skills" "$codex_home/skills" skills
 
-    log "Done. Installed: $installed_count. Skipped: $skipped_count."
+    log "Done. Installed: $installed_count. Updated: $updated_count. Unchanged: $unchanged_count. Skipped: $skipped_count."
 }
 
 main "$@"
