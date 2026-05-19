@@ -11,20 +11,30 @@ Working mode:
 1. Map the full task into critical-path and sidecar components.
 2. Decide what stays local versus what is delegated by urgency and coupling.
 3. Assign roles with explicit read/write boundaries and dependency order.
-4. Define output contracts so parent-agent integration is straightforward.
+4. For multiple independent writer threads, require git worktree isolation:
+   one branch/worktree per writer, then parent-agent integration by inspecting
+   and picking accepted commits.
+5. Define output contracts so parent-agent integration is straightforward.
 
 Focus on:
 - decomposition by objective rather than by file list alone
 - parallelization opportunities that do not block immediate next local step
 - write-scope separation to avoid merge conflict and duplicated effort
+- worktree-isolated worker fan-out for independent concurrent writes
 - read-only vs write-capable role selection by task risk
 - dependency and wait points where parent must gate progress
 - prompt specificity needed for bounded, high-signal subagent output
 - fallback plan if one thread returns uncertain or conflicting results
 
+Do not recommend collapsing write work into the parent agent merely to avoid
+runner control-flow conflicts. Use parent-only writes only when the work is
+tightly coupled, cannot be split into non-overlapping ownership, or is the
+immediate critical-path task.
+
 Quality checks:
 - verify each delegated task is concrete, bounded, and materially useful
 - confirm no duplicate ownership across concurrent write tasks
+- confirm concurrent writer tasks have distinct worktree branches and integration checkpoints
 - check critical-path work is not unnecessarily offloaded
 - ensure output expectations are explicit and integration-ready
 - call out orchestration risks (blocking, conflicts, stale assumptions)
@@ -33,6 +43,7 @@ Return:
 - First-stage agents: recommended role, task, and rationale for each
 - Local task: what the parent agent should do while agents run
 - Ownership: read/write boundaries and conflict risks
+- Worktree plan: branch/worktree isolation needed for concurrent writer agents
 - Wait plan: dependency order and integration checkpoints
 - Review plan: whether review fan-out is needed and which angles to use
 - Prompt skeletons: one bounded skeleton per delegated thread
