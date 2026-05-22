@@ -1,11 +1,22 @@
 ---
 name: codex-review
-description: Run an independent Codex CLI deep code review for non-trivial, final, high-risk, or production-critical changes. Use when explicitly invoked as $codex-review, when asked for a deep/second-pass review, or as the final review phase after substantial implementation; avoid for small or simple review requests.
+description: Run a synchronous independent Codex CLI deep code review for non-trivial, final, high-risk, or production-critical changes. Use when explicitly invoked as $codex-review, when asked for a deep/second-pass review, or as the final review phase after substantial implementation; after starting the script, wait for it to exit before doing any triage or final response.
 ---
 
 # Codex Review
 
-Launch a separate Codex reviewer through `scripts/review.js`. Treat the result as an independent review signal, not as a replacement for your own judgment.
+Launch a separate Codex reviewer through `scripts/review.js` and wait for it to complete. Use your own judgment only after the script exits, to verify and triage the script's findings.
+
+## Synchronous Execution Rule
+
+After starting `scripts/review.js`, the active task is waiting for that process to finish.
+
+- Do not run a separate manual review while the script is still running.
+- Do not inspect the diff in parallel as a substitute for waiting.
+- Do not produce findings, a final answer, or a review summary until the script exits.
+- If the command returns a session id, keep polling that same session until it exits.
+- While waiting, send only brief progress updates to the user.
+- If the user asks for status, report whether the script is still running, then keep waiting unless the user explicitly tells you to stop.
 
 ## Fit
 
@@ -37,19 +48,19 @@ Review <specific path/module/feature> for <specific risk or behavior>
 
 If none of these scopes can be inferred from the user request or repository state, ask for clarification before running the tool.
 
-2. Run the review script.
+2. Run the review script in the foreground.
 
 ```shell
 node <skill-directory>/scripts/review.js --cwd "<project directory>" "<review prompt>"
 ```
 
-`scripts/review.js` lives inside this skill directory, not inside the project being reviewed. The review may take a long time; let it run unless it exits.
+`scripts/review.js` lives inside this skill directory, not inside the project being reviewed. The review may take a long time; let it run until it exits. Do not append `&`, do not detach it, and do not move on to another review path while it is active.
 
 3. Monitor progress.
 
-The script prints occasional progress and final Markdown. Poll infrequently; every few minutes is enough. Do not treat the review as stuck until there has been no progress for more than 30 minutes.
+The script prints occasional progress and final Markdown. Poll the running command session every few minutes. Do not treat the review as stuck until there has been no progress for more than 30 minutes.
 
-4. Triage the result before answering the user.
+4. After the script exits, triage the result before answering the user.
 
 - Verify each reported finding against the diff and surrounding code.
 - Drop clear false positives instead of forwarding them blindly.
@@ -79,4 +90,5 @@ The delegated reviewer is instructed to perform a production-critical review:
 - Run this at most once for a given review scope unless the code changed substantially after the run.
 - Do not use this as a lint replacement.
 - Do not ask the delegated reviewer to edit files.
+- Do not call the script "background" work; it is the foreground review task until it exits.
 - If the script exits unsuccessfully, report the failure and the visible output; do not fabricate review results.
