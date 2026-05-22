@@ -1,96 +1,82 @@
 ---
 name: codex-review
-description: Run a code review using Codex CLI. Use when user asks for a code review.
+description: Run an independent Codex CLI deep code review for non-trivial, final, high-risk, or production-critical changes. Use when explicitly invoked as $codex-review, when asked for a deep/second-pass review, or as the final review phase after substantial implementation; avoid for small or simple review requests.
 ---
 
-# Review via Codex CLI
+# Codex Review
 
-This skill provides a _black-box_ review tool that utilizes LLM (Codex CLI) to do a code review, without relying on prior knowledge.
+Launch a separate Codex reviewer through `scripts/review.js`. Treat the result as an independent review signal, not as a replacement for your own judgment.
 
-## When to use this skill
+## Fit
 
-**This skill is extremely slow and expensive**, but provides high quality results, so you should only use it when:
+Use this skill when:
 
-- User explicitly invokes $codex-review ( /codex-review )
-- As the final review phase after all work has been done
-- Reviewing something non-trivial or critical
+- The user explicitly invokes `$codex-review` or asks for a deep review.
+- The change is non-trivial, high-risk, production-critical, or performance-sensitive.
+- A substantial implementation is complete and needs a final independent review pass.
 
-No need to use this skill for:
+Avoid this skill when:
 
-- Small change (e.g. < 500 LOC)
-- Simple or trivial code
-- During the middle of work when code is changing rapidly
-
-**This is a black-box review:**
-
-This skill only does black-box review (i.e. it only takes repository as input), there are pros and cons. Carefully consider whether it's suitable for your use case before using it.
-
-Pros:
-
-- Resistant to mistakes when user provides insufficient or wrong background information.
-- Possible to discover different issues compared as a white-box review.
-
-Cons:
-
-- Should not be used to check whether code changes meet specific requirements, as there is no way to tell it what requirements are, unless those requirements are documented in the codebase.
-- It may not discover hidden constraints that are not documented.
-
-IMPORTANT GUIDELINE: Always use this skill as a complementary tool, not the only tool, to provide a more comprehensive review.
-
-**This skill is LLM based:**
-
-- it will not exhaustively report all issues in one run
-- it may report different issues in different runs
-- it may report false positives (rare but possible)
-
-You should always use your own judgment to evaluate the review results, and not blindly trust it.
-
-**This skill is very expensive:**
-
-- You SHOULD NOT run it multiple times just to get more issues reported. SINGLE RUN IS ENOUGH to get most of the major issues.
-- This skill is not a lint or check. NEVER run this skill just to check for new issues when a previous review has just been done (unless the change is large enough).
+- The request is a small or simple review that can be handled by direct inspection.
+- Code is still changing rapidly and the review result would immediately go stale.
+- The user needs an interactive design discussion rather than a finished-code review.
 
 ## Workflow
 
-1. Assemble a review prompt.
+1. Define the review scope.
 
-Select one of the following review prompts based on the user request. If the user didn't specify, choose the most appropriate one based on the available information.
+Use the narrowest prompt that matches the request:
 
-```
+```text
 Review current code changes (staged, unstaged, and untracked files)
-Review code changes against the base branch <...>
+Review code changes against the base branch <branch>
 Review code changes introduced by commit <sha> (<title>)
 Review code changes for commit range <sha1>..<sha2>
-Review ... (this is the most flexible one, just describe what to review, e.g. review all code in <absolute path> related with ...)
+Review <specific path/module/feature> for <specific risk or behavior>
 ```
 
-If you believe none of the above prompts are suitable, stop and ask the user for clarification.
+If none of these scopes can be inferred from the user request or repository state, ask for clarification before running the tool.
 
-2. Run the review script:
+2. Run the review script.
 
 ```shell
-node scripts/review.js --cwd "<project directory>" "<review prompt>"
+node <skill-directory>/scripts/review.js --cwd "<project directory>" "<review prompt>"
 ```
 
-Review script will start a new agent to do the review. It takes a lot of time to complete (e.g. > 1 hour), so be patient, do not interrupt it.
+`scripts/review.js` lives inside this skill directory, not inside the project being reviewed. The review may take a long time; let it run unless it exits.
 
-Note: `scripts/review.js` lives inside this skill's directory, instead of project directory.
+3. Monitor progress.
 
-3. The script may output progress texts as the review goes. Just report what script outputs, including progress updates and results, keep text unchanged.
+The script prints occasional progress and final Markdown. Poll infrequently; every few minutes is enough. Do not treat the review as stuck until there has been no progress for more than 30 minutes.
 
-To reduce round trips, you should poll script output at least every 5 minutes. Do not poll frequently.
+4. Triage the result before answering the user.
 
-## Review Results
+- Verify each reported finding against the diff and surrounding code.
+- Drop clear false positives instead of forwarding them blindly.
+- Preserve the reviewer's priority labels when they are defensible; adjust only when the evidence clearly supports a different severity.
+- If the review reports no actionable findings, say that directly and include any residual test or validation gaps it identified.
 
-Review script reports findings with these priority definitions:
+## Review Standard
 
-[P0] – Drop everything to fix. Blocking release, operations, or major usage.
-[P1] – Urgent. Should be addressed in the next cycle
-[P2] – Normal. To be fixed eventually
-[P3] – Low. Nice to have.
+The delegated reviewer is instructed to perform a production-critical review:
 
-## Principles
+- Determine the exact change set before judging it.
+- Understand the problem, intent, and solution mechanics from code, tests, docs, commit messages, and repository instructions.
+- Explain or internally account for non-obvious control flow, data flow, state changes, concurrency, and failure modes.
+- Evaluate negative impacts across correctness, security, robustness, compatibility, CPU, memory, IO/RPC behavior, logging cost, and maintainability.
+- Report only discrete, actionable issues that the author would likely fix.
+- Prefer no findings over speculative findings.
 
-- Never do review by yourself. Always run the review script and just report the progress and results. If review script fails or stucks, report to user and ask for next steps.
-- Never regard script as stuck until it has no progress for > 30 minutes.
-- Never regard script as failed even if it outputs errors or fails. It will try to recover by itself. Script kills itself if it really fails.
+## Priority Labels
+
+- `[P0]`: Drop everything to fix. Blocking release, operations, or major usage.
+- `[P1]`: Urgent. Should be addressed in the next cycle.
+- `[P2]`: Normal. Should be fixed eventually.
+- `[P3]`: Low. Nice to have.
+
+## Constraints
+
+- Run this at most once for a given review scope unless the code changed substantially after the run.
+- Do not use this as a lint replacement.
+- Do not ask the delegated reviewer to edit files.
+- If the script exits unsuccessfully, report the failure and the visible output; do not fabricate review results.

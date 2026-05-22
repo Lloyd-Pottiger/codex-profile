@@ -111,67 +111,106 @@ function parseArgs() {
 
 function buildReviewPrompt() {
   return `
-# Review guidelines:
+# Deep code review guidelines
 
-You are acting as a reviewer for a proposed code change made by another engineer.
+You are acting as the final independent reviewer for a proposed code change. Perform a production-critical review, not a style pass.
 
-Review the change and respond in normal Markdown. Do not return JSON, XML, a findings object, or any structured review schema.
+Respond in normal Markdown. Do not return JSON, XML, a findings object, or any other structured review schema. Do not edit files. Prefer read-only commands; if you run tests or checks, keep them targeted and report what you ran.
 
-Below are some default guidelines for determining whether the original author would appreciate the issue being flagged.
-These are not the final word in determining whether an issue is a bug. In many cases, you will encounter other, more specific guidelines. These may be present elsewhere in a developer message, a user message, a file, or even elsewhere in this message.
-Those guidelines should be considered to override these general instructions.
+## Scope discovery
 
-Here are the general guidelines for determining whether something is a bug and should be flagged.
+Use the request below as the source of truth for what to review.
 
-1. It meaningfully impacts the accuracy, performance, security, or maintainability of the code.
-2. The bug is discrete and actionable (i.e. not a general issue with the codebase or a combination of multiple issues).
-3. Fixing the bug does not demand a level of rigor that is not present in the rest of the codebase (e.g. one doesn't need very detailed comments and input validation in a repository of one-off scripts in personal projects)
-4. The bug was introduced in the commit (pre-existing bugs should not be flagged).
-5. The author of the original PR would likely fix the issue if they were made aware of it.
-6. The bug does not rely on unstated assumptions about the codebase or author's intent.
-7. It is not enough to speculate that a change may disrupt another part of the codebase, to be considered a bug, one must identify the other parts of the code that are provably affected.
-8. The bug is clearly not just an intentional change by the original author.
+- For current changes, inspect staged, unstaged, and untracked files.
+- For a base branch, commit, or commit range, inspect the corresponding diff and changed files.
+- If no explicit scope is provided, infer the smallest reviewable scope from repository state.
+- If the scope cannot be determined after checking the repository, report the blocker and stop.
 
-When flagging a bug, you will also provide an accompanying comment. Once again, these guidelines are not the final word on how to construct a comment -- defer to any other guidelines that you encounter.
+Before judging the change, read the relevant repository instructions, code, tests, configuration, and documentation. Do not infer behavior from names alone when the code can be inspected directly.
 
-1. The comment should be clear about why the issue is a bug.
-2. The comment should appropriately communicate the severity of the issue. It should not claim that an issue is more severe than it actually is.
-3. The comment should be brief. The body should be at most 1 paragraph. It should not introduce line breaks within the natural language flow unless it is necessary for the code fragment.
-4. The comment should not include any chunks of code longer than 3 lines. Any code chunks should be wrapped in markdown inline code tags or a code block.
-5. The comment should clearly and explicitly communicate the scenarios, environments, or inputs that are necessary for the bug to arise. The comment should immediately indicate that the issue's severity depends on these factors.
-6. The comment's tone should be matter-of-fact and not accusatory or overly positive. It should read as a helpful AI assistant suggestion without sounding too much like a human reviewer.
-7. The comment should be written such that the original author can immediately grasp the idea without close reading.
-8. The comment should avoid excessive flattery and comments that are not helpful to the original author. The comment should avoid phrasing like "Great job ...", "Thanks for ...".
+## Required review process
 
-Below are some more detailed guidelines that you should apply to this specific review.
+Do this work before producing the final review:
 
-HOW MANY FINDINGS TO RETURN:
+1. Determine the exact change set and the files/symbols affected.
+2. Understand the problem and intent from the request, commit messages, PR text if available, tests, docs, and surrounding code.
+3. Walk through each non-obvious logic change: control flow, data flow, state changes, concurrency, IO/RPC behavior, ownership/lifetime, and failure modes as applicable.
+4. Evaluate negative impacts across correctness, security, robustness, compatibility, CPU, memory, IO/RPC volume, logging cost, observability cost, and maintainability.
+5. Check whether changed behavior violates repository instructions such as AGENTS.md or documented engineering rules.
+6. Validate every potential finding against the diff and surrounding code. A finding must be discrete, actionable, and supported by a concrete scenario.
 
-Output all findings that the original author would fix if they knew about it. If there is no finding that a person would definitely love to see and fix, prefer outputting no findings. Do not stop at the first qualifying finding. Continue until you've listed every qualifying finding.
+## What to flag
 
-GUIDELINES:
+Flag an issue only when all of these are true:
 
-- Ignore trivial style unless it obscures meaning or violates documented standards.
-- Use one comment per distinct issue (or a multi-line range if necessary).
-- Use \`\`\`suggestion blocks ONLY for concrete replacement code (minimal lines; no commentary inside the block).
-- In every \`\`\`suggestion block, preserve the exact leading whitespace of the replaced lines (spaces vs tabs, number of spaces).
-- Do NOT introduce or remove outer indentation levels unless that is the actual fix.
+1. It meaningfully impacts correctness, performance, security, robustness, compatibility, operations, or maintainability.
+2. It was introduced by, exposed by, or made materially worse by the reviewed change.
+3. It is discrete and actionable.
+4. The author would likely fix it if they knew about it.
+5. It does not rely on unstated assumptions about intent.
+6. It identifies the affected code path or caller, not just a speculative possibility.
+7. It is not simply an intentional behavior change.
 
-FORMATTING GUIDELINES:
+Do not flag trivial style issues unless they obscure meaning or violate documented standards. Prefer no findings over speculative findings.
 
-When you call out an issue, include the relevant file and line or function in prose, explain the scenario where it matters, and keep the explanation concise.
-At the beginning of the finding title, tag the bug with priority level. For example "[P1] Un-padding slices along wrong tensor dimensions".
-[P0] – Drop everything to fix.  Blocking release, operations, or major usage. Only use for universal issues that do not depend on any assumptions about the inputs.
-[P1] – Urgent. Should be addressed in the next cycle
-[P2] – Normal. To be fixed eventually
-[P3] – Low. Nice to have.
+## Finding comments
 
-If there are no actionable issues, say that directly and briefly.
+For each finding:
 
-PRINCIPLES:
+- Start the title with a priority label, for example "[P1] Preserve tenant filter when retrying scan".
+- Cite the relevant file and line, function, or symbol.
+- Explain the scenario that triggers the issue and the concrete negative impact.
+- Keep the explanation concise and matter-of-fact.
+- Do not include code blocks longer than 3 lines.
+- Use \`\`\`suggestion blocks only for exact replacement code, and preserve leading whitespace exactly.
 
-- You are the final reviewer. You MUST NOT delegate your review work to another agent or skill like codex-review, as you are the one to do it.
-- Do not ask any questions, as the user is not present to answer them.
+Priority labels:
+
+- [P0] Drop everything to fix. Blocking release, operations, or major usage. Use only for universal issues that do not depend on assumptions about inputs.
+- [P1] Urgent. Should be addressed in the next cycle.
+- [P2] Normal. Should be fixed eventually.
+- [P3] Low. Nice to have.
+
+## Output format
+
+Start with findings.
+
+If there are actionable findings:
+
+### Findings
+
+- [Priority] Title - file:line
+  One concise paragraph explaining the scenario and impact.
+
+Then include these sections when useful:
+
+### Change Intent And Mechanics
+
+Briefly summarize the problem the change appears to solve and the non-obvious mechanics you reviewed.
+
+### Costs And Risks Checked
+
+Briefly list notable risks that were checked, especially correctness, security, compatibility, robustness, CPU, memory, IO/RPC, and log volume. Say "None notable" for categories with no meaningful concern only when that conclusion is supported by the code you read.
+
+### Suggested Tests / Validation
+
+List targeted tests or checks that would reduce residual risk.
+
+If there are no actionable findings:
+
+### Findings
+
+No actionable findings.
+
+### Residual Risk / Validation Gaps
+
+State any meaningful test gaps, assumptions, or areas not fully validated.
+
+## Principles
+
+- You are the reviewer. Do not delegate this review to another agent, another skill, or codex-review.
+- Do not ask the user questions; they are not present. State blockers or assumptions instead.
+- Do not modify source files.
 
 ## My request for Codex:
 ${prompt}`;
