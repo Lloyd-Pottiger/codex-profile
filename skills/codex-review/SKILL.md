@@ -14,8 +14,8 @@ After starting `scripts/review.js`, the active task is waiting for that process 
 - Do not run a separate manual review while the script is still running.
 - Do not inspect the diff in parallel as a substitute for waiting.
 - Do not produce findings, a final answer, or a review summary until the script exits.
-- If the command returns a session id, keep polling that same session until it exits.
-- While waiting, send only brief progress updates to the user.
+- If the command returns a session id, keep polling that same session until it exits, but wait about 5 minutes between polls unless the user asks for status.
+- While waiting, send only brief progress updates to the user when a poll returns new output or the user asks for status.
 - If the user asks for status, report whether the script is still running, then keep waiting unless the user explicitly tells you to stop.
 
 ## Fit
@@ -58,7 +58,7 @@ node <skill-directory>/scripts/review.js --cwd "<project directory>" "<review pr
 
 3. Monitor progress.
 
-The script prints occasional progress and final Markdown. Poll the running command session every few minutes. Do not treat the review as stuck until there has been no progress for more than 30 minutes.
+The script buffers progress and final Markdown. Poll the running command session about once every 5 minutes unless the user asks for status. If a poll returns no new output, keep waiting quietly. Do not treat the review as stuck until there has been no progress for more than 30 minutes.
 
 4. After the script exits, triage the result before answering the user.
 

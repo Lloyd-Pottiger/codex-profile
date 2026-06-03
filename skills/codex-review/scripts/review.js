@@ -392,8 +392,7 @@ function scheduleInterrupt() {
   });
 }
 
-// buffer output and flush every X minutes, so that agents will not be frequently awaken up,
-// reduce token usage.
+// Buffer progress output so review results stay readable without fragmenting output.
 function flushOutput() {
   clearTimer("outputFlushTimer");
   if (state.outputBuffer.length === 0) {
