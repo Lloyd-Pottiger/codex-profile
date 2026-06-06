@@ -13,6 +13,14 @@ Produce a self-contained artifact that lets a fresh agent continue work without 
 - If the user asks for a full handoff, session handoff, or continuation document, write a handoff document and save it to a path produced by `mktemp -t handoff-XXXXXX.md` (read the file before writing to it).
 - If the user passed arguments, treat them as the next agent's focus. Include only conversation details relevant to that focus and explicitly omit unrelated work.
 
+## Copy-Friendly Chat Output
+
+For a focused prompt written in chat, output only the prompt text that should be
+given to the next agent. Do not add an introduction, explanation, language label,
+or closing note such as "Below is..." or "下面是...". Do not wrap the prompt in a
+code block. Start directly with the prompt title or objective so the user can use
+`/copy` on the response without cleanup.
+
 ## Focused Prompt
 
 Write a prompt the user can give directly to another agent. Include:
