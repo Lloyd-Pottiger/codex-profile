@@ -10,6 +10,7 @@ Use this skill only when the user explicitly authorizes subagents, delegation, o
 ## Non-Negotiables
 
 - Spawn multiple agents only for genuinely independent work that can run in parallel.
+- When the user gives an agent count, treat it as the number of spawned task agents. The main agent and any organizer do not count.
 - If spawning 2 or more agents, use one `multi_tool_use.parallel` call that wraps the `spawn_agent` calls.
 - Give each agent a concrete, self-contained task with clear scope, expected output, and ownership.
 - Use the main agent primarily as an orchestrator: keep local context focused on planning, ownership, integration, and verification.
@@ -23,7 +24,7 @@ Use this skill only when the user explicitly authorizes subagents, delegation, o
 
 Before spawning, state assumptions, success criteria, and dispatch shape.
 
-For non-trivial dispatch, first use `agent_type: "agent-organizer"` to propose the lineup, local-vs-delegated split, ownership boundaries, dependency/wait points, and prompt skeletons. Non-trivial means 2 or more first-stage agents, user-specified `n`, mixed read/write work, unclear ownership, or review fan-out after implementation. While the organizer runs, the main agent may read non-overlapping context and prepare verification, but should not launch first-stage workers until the organizer finishes or the user chooses a new path after the wait budget.
+For non-trivial dispatch, first use `agent_type: "agent-organizer"` to propose the lineup, local-vs-delegated split, ownership boundaries, dependency/wait points, and prompt skeletons. Non-trivial means 2 or more first-stage agents, user-specified `n`, mixed read/write work, unclear ownership, or review fan-out after implementation. If the user specified `n`, instruct the organizer to plan for `n` spawned task agents when safe and to explain any smaller lineup. While the organizer runs, the main agent may read non-overlapping context and prepare verification, but should not launch first-stage workers until the organizer finishes or the user chooses a new path after the wait budget.
 
 The main agent should minimize local context growth. Delegate targeted code reading, implementation slices, test planning, and review whenever those tasks are independent enough to run in parallel. Locally keep only the compact state needed to coordinate the work: task intent, constraints, ownership map, branch/worktree map, wait status, integration order, and verification plan.
 
@@ -33,7 +34,7 @@ Choose first-stage agents by real boundaries:
 - Use `agent_type: "worker"` for implementation slices with disjoint file or module ownership.
 - Use `agent_type: "reviewer"` only after there is a stable artifact to review.
 - Use `agent_type: "qa-expert"` for dedicated test strategy, acceptance coverage, or release-risk review.
-- If the user requests `n` agents but the work cannot be split safely into `n` independent tasks, spawn fewer and explain why.
+- If the user requests `n` agents, spawn `n` when there are `n` safe independent scopes. Spawn fewer only when the work cannot be split that way, and explain why.
 - Keep one immediate local task only when it is cheap, clearly useful, or on the critical path; otherwise prefer orchestration work such as preparing verification, tracking ownership, and integrating completed branches.
 
 Each worker prompt must say the agent is not alone in the codebase, must not revert unrelated edits or edits by other agents, and must include `Ownership`, `Task`, `Constraints`, and `Return format`.
